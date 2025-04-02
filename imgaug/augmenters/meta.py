@@ -320,7 +320,7 @@ class Augmenter(object):
             self.random_state = iarandom.RNG.create_pseudo_random_()
         else:
             # self.random_state = iarandom.normalize_rng_(random_state)
-            self.random_state = iarandom.RNG.create_if_not_rng_(seed)
+            self.random_state = iarandom.RNG(seed)
 
         self.activated = True
 
@@ -638,13 +638,11 @@ class Augmenter(object):
         # little overhead.
         with _maybe_deterministic_ctx(self):
             if not batch_inaug.empty:
-                pf_enabled = not self.deterministic
-                with iap.toggled_prefetching(pf_enabled):
-                    batch_inaug = self._augment_batch_(
-                        batch_inaug,
-                        random_state=self.random_state,
-                        parents=parents if parents is not None else [],
-                        hooks=hooks)
+                batch_inaug = self._augment_batch_(
+                    batch_inaug,
+                    random_state=self.random_state,
+                    parents=parents if parents is not None else [],
+                    hooks=hooks)
 
         # revert augmentables being set to None for non-activated augmenters
         for column in set_to_none:
@@ -701,7 +699,7 @@ class Augmenter(object):
             See :func:`~imgaug.augmenters.meta.Augmenter.augment_batch_`.
 
         Returns
-        -------
+        ----------
         imgaug.augmentables.batches._BatchInAugmentation
             The augmented batch.
 
@@ -724,12 +722,10 @@ class Augmenter(object):
         # batch.T_unaug (that had any content)
         for column in columns:
             with _maybe_deterministic_ctx(random_state, deterministic):
-                pf_enabled = not self.deterministic
-                with iap.toggled_prefetching(pf_enabled):
-                    value = getattr(self, "_augment_" + column.name)(
-                        column.value, random_state=random_state,
-                        parents=parents, hooks=hooks)
-                    setattr(batch, column.attr_name, value)
+                value = getattr(self, "_augment_" + column.name)(
+                    column.value, random_state=random_state,
+                    parents=parents, hooks=hooks)
+                setattr(batch, column.attr_name, value)
 
         # If the augmenter was alread in deterministic mode, we can expect
         # that to_deterministic() was called, which advances the RNG. But
@@ -1365,12 +1361,7 @@ class Augmenter(object):
             The augmented bounding boxes.
 
         """
-        return self._augment_cbaois_as_keypoints(
-            bounding_boxes_on_images,
-            random_state=random_state,
-            parents=parents,
-            hooks=hooks
-        )
+        return bounding_boxes_on_images
 
     def _augment_polygons(self, polygons_on_images, random_state, parents,
                           hooks):
@@ -1412,12 +1403,7 @@ class Augmenter(object):
             The augmented polygons.
 
         """
-        return self._augment_cbaois_as_keypoints(
-            polygons_on_images,
-            random_state=random_state,
-            parents=parents,
-            hooks=hooks
-        )
+        return polygons_on_images
 
     def _augment_line_strings(self, line_strings_on_images, random_state,
                               parents, hooks):
@@ -1460,12 +1446,7 @@ class Augmenter(object):
             The augmented line strings.
 
         """
-        return self._augment_cbaois_as_keypoints(
-            line_strings_on_images,
-            random_state=random_state,
-            parents=parents,
-            hooks=hooks
-        )
+        return line_strings_on_images
 
     def _augment_bounding_boxes_as_keypoints(self, bounding_boxes_on_images,
                                              random_state, parents, hooks):
@@ -2380,7 +2361,7 @@ class Augmenter(object):
         if entropy is None:
             random_state = iarandom.RNG.create_pseudo_random_()
         else:
-            random_state = iarandom.RNG.create_if_not_rng_(entropy)
+            random_state = iarandom.RNG(entropy)
 
         if not self.deterministic or deterministic_too:
             # note that derive_rng_() (used below) advances the RNG, so
@@ -3858,13 +3839,12 @@ class WithChannels(Augmenter):
     @classmethod
     def _assert_dtypes_not_changed(cls, images_aug, images):
         if ia.is_np_array(images_aug) and ia.is_np_array(images):
-            dtypes_same = (images_aug.dtype == images.dtype)
+            dtypes_same = (images_aug.dtype.name == images.dtype.name)
         else:
-            dtypes_same = all([
-                image_aug.dtype == image.dtype
-                for image_aug, image
-                in zip(images_aug, images)
-            ])
+            dtypes_same = all(
+                [image_aug.dtype.name == image.dtype.name
+                 for image_aug, image
+                 in zip(images_aug, images)])
 
         assert dtypes_same, (
             "dtypes of images changed in WithChannels from "

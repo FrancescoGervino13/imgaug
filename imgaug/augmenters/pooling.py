@@ -436,7 +436,9 @@ class MaxPooling(_AbstractPoolingBase):
             random_state=random_state, deterministic=deterministic)
 
     def _pool_image(self, image, kernel_size_h, kernel_size_w):
-        return ia.max_pool_(
+        # TODO extend max_pool to support pad_mode and set it here
+        #      to reflection padding
+        return ia.max_pool(
             image,
             (kernel_size_h, kernel_size_w)
         )
@@ -557,7 +559,9 @@ class MinPooling(_AbstractPoolingBase):
             random_state=random_state, deterministic=deterministic)
 
     def _pool_image(self, image, kernel_size_h, kernel_size_w):
-        return ia.min_pool_(
+        # TODO extend pool to support pad_mode and set it here
+        #      to reflection padding
+        return ia.min_pool(
             image,
             (kernel_size_h, kernel_size_w)
         )

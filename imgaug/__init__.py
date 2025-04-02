@@ -11,6 +11,5 @@ from imgaug.augmentables import *
 import imgaug.augmenters as augmenters
 import imgaug.parameters as parameters
 import imgaug.dtypes as dtypes
-import imgaug.data as data
 
 __version__ = '0.4.0'

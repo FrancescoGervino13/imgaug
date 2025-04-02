@@ -13,14 +13,11 @@ import skimage.measure
 from .. import imgaug as ia
 from .. import random as iarandom
 from .base import IAugmentable
-from .utils import (
-    normalize_imglike_shape,
-    interpolate_points,
-    _remove_out_of_image_fraction_,
-    project_coords_,
-    _normalize_shift_args,
-    _handle_on_image_shape
-)
+from .utils import (normalize_shape,
+                    interpolate_points,
+                    _remove_out_of_image_fraction_,
+                    project_coords_,
+                    _normalize_shift_args)
 
 
 def recover_psois_(psois, psois_orig, recoverer, random_state):
@@ -615,6 +612,7 @@ class Polygon(object):
             assert multipoly_inter_shapely.is_empty
             return []
         else:
+            print(multipoly_inter_shapely, image, self.exterior)
             raise Exception(
                 "Got an unexpected result of type %s from Shapely for "
                 "image (%d, %d) and polygon %s. This is an internal error. "
@@ -1435,10 +1433,10 @@ class PolygonsOnImage(IAugmentable):
     polygons : list of imgaug.augmentables.polys.Polygon
         List of polygons on the image.
 
-    shape : tuple of int
-        The shape of the image on which the objects are placed, i.e. the
-        result of ``image.shape``.
-        Should include the number of channels, not only height and width.
+    shape : tuple of int or ndarray
+        The shape of the image on which the objects are placed.
+        Either an image with shape ``(H,W,[C])`` or a ``tuple`` denoting
+        such an image shape.
 
     Examples
     --------
@@ -1455,7 +1453,7 @@ class PolygonsOnImage(IAugmentable):
 
     def __init__(self, polygons, shape):
         self.polygons = polygons
-        self.shape = _handle_on_image_shape(shape, self)
+        self.shape = normalize_shape(shape)
 
     @property
     def items(self):
@@ -1516,7 +1514,7 @@ class PolygonsOnImage(IAugmentable):
 
         """
         # pylint: disable=invalid-name
-        on_shape = normalize_imglike_shape(image)
+        on_shape = normalize_shape(image)
         if on_shape[0:2] == self.shape[0:2]:
             self.shape = on_shape  # channels may differ
             return self
@@ -2247,7 +2245,7 @@ class _ConcavePolygonRecoverer(object):
         if polygon.is_valid:
             return polygon
 
-        random_state = iarandom.RNG.create_if_not_rng_(random_state)
+        random_state = iarandom.RNG(random_state)
         rss = random_state.duplicate(3)
 
         # remove consecutive duplicate points
